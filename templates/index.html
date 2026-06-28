@@ -1,0 +1,271 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+
+    <title>Log Analyzer Dashboard</title>
+
+    <link
+      rel="stylesheet"
+      href="{{ url_for('static', filename='style.css') }}"
+    />
+
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  </head>
+
+  <body>
+    <h1>🛡 Log Analyzer & Threat Dashboard</h1>
+
+    <!-- Upload Form -->
+    <form method="POST" enctype="multipart/form-data">
+      <input type="file" name="logfile" required />
+
+      <button type="submit">Upload Log</button>
+      <a href="/download_csv">
+        <button type="button">📥 Download CSV Report</button>
+      </a>
+    </form>
+
+    <!-- Dashboard Cards -->
+
+    <div class="cards">
+      <div class="card">
+        <h2>{{ total_logs }}</h2>
+
+        <p>Total Logs</p>
+      </div>
+
+      <div class="card">
+        <h2>{{ total_failed }}</h2>
+
+        <p>Failed Logins</p>
+      </div>
+
+      <div class="card">
+        <h2>{{ suspicious_ips }}</h2>
+
+        <p>Suspicious IPs</p>
+      </div>
+    </div>
+
+    <!-- Charts -->
+
+    <h2>Dashboard Charts</h2>
+
+    <div class="charts">
+      <canvas id="pieChart"></canvas>
+
+      <canvas id="barChart"></canvas>
+    </div>
+
+    <!-- Search -->
+
+    <h2>Failed Login Attempts</h2>
+
+    <input
+      type="text"
+      id="searchInput"
+      placeholder="Search by IP Address..."
+      onkeyup="searchTable()"
+    />
+
+    <!-- Failed Login Table -->
+
+    <table id="logTable">
+      <tr>
+        <th>IP Address</th>
+        <th>Status</th>
+        <th>Request</th>
+      </tr>
+
+      {% for log in failed %}
+
+      <tr>
+        <td>{{ log.ip }}</td>
+
+        <td>{{ log.status }}</td>
+
+        <td>{{ log.request }}</td>
+      </tr>
+
+      {% endfor %}
+    </table>
+
+    <!-- Threat Detection -->
+
+    <h2>🚨 Brute Force Detection</h2>
+
+    <ul>
+      {% for ip, count in brute.items() %}
+
+      <li>
+        <strong>{{ ip }}</strong>
+
+        {% if count >= 10 %}
+
+        <span class="high">High Risk</span>
+
+        {% elif count >= 5 %}
+
+        <span class="medium">Medium Risk</span>
+
+        {% else %}
+
+        <span class="low">Low Risk</span>
+
+        {% endif %} ({{ count }} failed attempts)
+      </li>
+
+      {% endfor %}
+    </ul>
+
+    <!-- Top Attackers -->
+
+    <h2>🏆 Top 5 Attacking IPs</h2>
+
+    <table>
+      <tr>
+        <th>Rank</th>
+
+        <th>IP Address</th>
+
+        <th>Failed Attempts</th>
+      </tr>
+
+      {% for ip, count in top_attackers %}
+
+      <tr>
+        <td>{{ loop.index }}</td>
+
+        <td>{{ ip }}</td>
+
+        <td>{{ count }}</td>
+      </tr>
+
+      {% endfor %}
+    </table>
+
+    <!-- Pie Chart -->
+
+    <script>
+
+      const pie = document.getElementById("pieChart");
+
+      new Chart(pie, {
+
+          type: "pie",
+
+          data: {
+
+              labels: ["Successful", "Failed"],
+
+              datasets: [{
+
+                  data: [{{ success }}, {{ failed_count }}],
+
+                  backgroundColor: [
+
+                      "#4CAF50",
+
+                      "#F44336"
+
+                  ]
+
+              }]
+
+          }
+
+      });
+    </script>
+
+    <!-- Bar Chart -->
+
+    <script>
+
+      const bar = document.getElementById("barChart");
+
+      new Chart(bar, {
+
+          type: "bar",
+
+          data: {
+
+              labels: [
+
+                  {% for ip, count in top_attackers %}
+
+                  "{{ ip }}",
+
+                  {% endfor %}
+
+              ],
+
+              datasets: [{
+
+                  label: "Failed Attempts",
+
+                  data: [
+
+                      {% for ip, count in top_attackers %}
+
+                      {{ count }},
+
+                      {% endfor %}
+
+                  ],
+
+                  backgroundColor: "#1976D2"
+
+              }]
+
+          },
+
+          options: {
+
+              responsive: true,
+
+              plugins: {
+
+                  legend: {
+
+                      display: false
+
+                  }
+
+              }
+
+          }
+
+      });
+    </script>
+
+    <!-- Search Function -->
+
+    <script>
+      function searchTable() {
+        let input = document.getElementById("searchInput");
+
+        let filter = input.value.toUpperCase();
+
+        let table = document.getElementById("logTable");
+
+        let tr = table.getElementsByTagName("tr");
+
+        for (let i = 1; i < tr.length; i++) {
+          let td = tr[i].getElementsByTagName("td")[0];
+
+          if (td) {
+            let value = td.textContent || td.innerText;
+
+            if (value.toUpperCase().indexOf(filter) > -1) {
+              tr[i].style.display = "";
+            } else {
+              tr[i].style.display = "none";
+            }
+          }
+        }
+      }
+    </script>
+  </body>
+</html>
