@@ -3,8 +3,7 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-
-    <title>Log Analyzer Dashboard</title>
+    <title>Log Analyzer & Threat Dashboard</title>
 
     <link
       rel="stylesheet"
@@ -15,256 +14,224 @@
   </head>
 
   <body>
-    <h1>🛡 Log Analyzer & Threat Dashboard</h1>
+    <div class="container">
+      <h1>🛡 Log Analyzer & Threat Dashboard</h1>
 
-    <!-- Upload Form -->
-    <form method="POST" enctype="multipart/form-data">
-      <input type="file" name="logfile" required />
+      <form method="POST" enctype="multipart/form-data">
+        <input type="file" name="logfile" required />
 
-      <button type="submit">Upload Log</button>
-      <a href="/download_csv">
-        <button type="button">📥 Download CSV Report</button>
-      </a>
-    </form>
+        <button type="submit">Upload Log</button>
+      </form>
 
-    <!-- Dashboard Cards -->
+      <div class="cards">
+        <div class="card">
+          <h2>{{ total_logs }}</h2>
 
-    <div class="cards">
-      <div class="card">
-        <h2>{{ total_logs }}</h2>
+          <p>Total Logs</p>
+        </div>
 
-        <p>Total Logs</p>
+        <div class="card">
+          <h2>{{ success }}</h2>
+
+          <p>Successful Requests</p>
+        </div>
+
+        <div class="card">
+          <h2>{{ failed_count }}</h2>
+
+          <p>Failed Logins</p>
+        </div>
+
+        <div class="card">
+          <h2>{{ suspicious_ips }}</h2>
+
+          <p>Suspicious IPs</p>
+        </div>
       </div>
 
-      <div class="card">
-        <h2>{{ total_failed }}</h2>
+      <h2>Dashboard Charts</h2>
 
-        <p>Failed Logins</p>
+      <div class="charts">
+        <canvas id="pieChart"></canvas>
+
+        <canvas id="barChart"></canvas>
       </div>
 
-      <div class="card">
-        <h2>{{ suspicious_ips }}</h2>
+      <h2>Failed Login Attempts</h2>
 
-        <p>Suspicious IPs</p>
-      </div>
+      <input
+        type="text"
+        id="searchInput"
+        placeholder="Search IP..."
+        onkeyup="searchTable()"
+      />
+
+      <table id="logTable">
+        <tr>
+          <th>IP Address</th>
+
+          <th>Status</th>
+
+          <th>Request</th>
+        </tr>
+
+        {% for log in failed %}
+
+        <tr>
+          <td>{{ log.ip }}</td>
+
+          <td>{{ log.status }}</td>
+
+          <td>{{ log.request }}</td>
+        </tr>
+
+        {% endfor %}
+      </table>
+
+      <h2>Brute Force Detection</h2>
+
+      <ul>
+        {% for ip,count in brute.items() %}
+
+        <li>
+          <strong>{{ ip }}</strong>
+
+          {% if count >=10 %}
+
+          <span class="high">High Risk</span>
+
+          {% elif count >=5 %}
+
+          <span class="medium">Medium Risk</span>
+
+          {% else %}
+
+          <span class="low">Low Risk</span>
+
+          {% endif %} ({{count}} failed attempts)
+        </li>
+
+        {% endfor %}
+      </ul>
+
+      <h2>Top 5 Attacking IPs</h2>
+
+      <table>
+        <tr>
+          <th>Rank</th>
+
+          <th>IP Address</th>
+
+          <th>Attempts</th>
+        </tr>
+
+        {% for ip,count in top_attackers %}
+
+        <tr>
+          <td>{{loop.index}}</td>
+
+          <td>{{ip}}</td>
+
+          <td>{{count}}</td>
+        </tr>
+
+        {% endfor %}
+      </table>
     </div>
 
-    <!-- Charts -->
-
-    <h2>Dashboard Charts</h2>
-
-    <div class="charts">
-      <canvas id="pieChart"></canvas>
-
-      <canvas id="barChart"></canvas>
-    </div>
-
-    <!-- Search -->
-
-    <h2>Failed Login Attempts</h2>
-
-    <input
-      type="text"
-      id="searchInput"
-      placeholder="Search by IP Address..."
-      onkeyup="searchTable()"
-    />
-
-    <!-- Failed Login Table -->
-
-    <table id="logTable">
-      <tr>
-        <th>IP Address</th>
-        <th>Status</th>
-        <th>Request</th>
-      </tr>
-
-      {% for log in failed %}
-
-      <tr>
-        <td>{{ log.ip }}</td>
-
-        <td>{{ log.status }}</td>
-
-        <td>{{ log.request }}</td>
-      </tr>
-
-      {% endfor %}
-    </table>
-
-    <!-- Threat Detection -->
-
-    <h2>🚨 Brute Force Detection</h2>
-
-    <ul>
-      {% for ip, count in brute.items() %}
-
-      <li>
-        <strong>{{ ip }}</strong>
-
-        {% if count >= 10 %}
-
-        <span class="high">High Risk</span>
-
-        {% elif count >= 5 %}
-
-        <span class="medium">Medium Risk</span>
-
-        {% else %}
-
-        <span class="low">Low Risk</span>
-
-        {% endif %} ({{ count }} failed attempts)
-      </li>
-
-      {% endfor %}
-    </ul>
-
-    <!-- Top Attackers -->
-
-    <h2>🏆 Top 5 Attacking IPs</h2>
-
-    <table>
-      <tr>
-        <th>Rank</th>
-
-        <th>IP Address</th>
-
-        <th>Failed Attempts</th>
-      </tr>
-
-      {% for ip, count in top_attackers %}
-
-      <tr>
-        <td>{{ loop.index }}</td>
-
-        <td>{{ ip }}</td>
-
-        <td>{{ count }}</td>
-      </tr>
-
-      {% endfor %}
-    </table>
-
-    <!-- Pie Chart -->
-
     <script>
 
-      const pie = document.getElementById("pieChart");
+      new Chart(document.getElementById("pieChart"),{
 
-      new Chart(pie, {
+      type:"pie",
 
-          type: "pie",
+      data:{
 
-          data: {
+      labels:["Successful","Failed"],
 
-              labels: ["Successful", "Failed"],
+      datasets:[{
 
-              datasets: [{
+      data:[{{success}},{{failed_count}}],
 
-                  data: [{{ success }}, {{ failed_count }}],
+      backgroundColor:[
+      "#4CAF50",
+      "#F44336"
+      ]
 
-                  backgroundColor: [
+      }]
 
-                      "#4CAF50",
-
-                      "#F44336"
-
-                  ]
-
-              }]
-
-          }
+      }
 
       });
-    </script>
 
-    <!-- Bar Chart -->
+      new Chart(document.getElementById("barChart"),{
 
-    <script>
+      type:"bar",
 
-      const bar = document.getElementById("barChart");
+      data:{
 
-      new Chart(bar, {
+      labels:[
+      {% for ip,count in top_attackers %}
+      "{{ip}}",
+      {% endfor %}
+      ],
 
-          type: "bar",
+      datasets:[{
 
-          data: {
+      label:"Failed Attempts",
 
-              labels: [
+      data:[
+      {% for ip,count in top_attackers %}
+      {{count}},
+      {% endfor %}
+      ],
 
-                  {% for ip, count in top_attackers %}
+      backgroundColor:"#2196F3"
 
-                  "{{ ip }}",
+      }]
 
-                  {% endfor %}
+      },
 
-              ],
-
-              datasets: [{
-
-                  label: "Failed Attempts",
-
-                  data: [
-
-                      {% for ip, count in top_attackers %}
-
-                      {{ count }},
-
-                      {% endfor %}
-
-                  ],
-
-                  backgroundColor: "#1976D2"
-
-              }]
-
-          },
-
-          options: {
-
-              responsive: true,
-
-              plugins: {
-
-                  legend: {
-
-                      display: false
-
-                  }
-
-              }
-
-          }
+      options:{
+      responsive:true
+      }
 
       });
-    </script>
 
-    <!-- Search Function -->
+      function searchTable(){
 
-    <script>
-      function searchTable() {
-        let input = document.getElementById("searchInput");
+      let input=document.getElementById("searchInput");
 
-        let filter = input.value.toUpperCase();
+      let filter=input.value.toUpperCase();
 
-        let table = document.getElementById("logTable");
+      let table=document.getElementById("logTable");
 
-        let tr = table.getElementsByTagName("tr");
+      let tr=table.getElementsByTagName("tr");
 
-        for (let i = 1; i < tr.length; i++) {
-          let td = tr[i].getElementsByTagName("td")[0];
+      for(let i=1;i<tr.length;i++){
 
-          if (td) {
-            let value = td.textContent || td.innerText;
+      let td=tr[i].getElementsByTagName("td")[0];
 
-            if (value.toUpperCase().indexOf(filter) > -1) {
-              tr[i].style.display = "";
-            } else {
-              tr[i].style.display = "none";
-            }
-          }
-        }
+      if(td){
+
+      let txt=td.textContent||td.innerText;
+
+      if(txt.toUpperCase().indexOf(filter)>-1){
+
+      tr[i].style.display="";
+
+      }
+
+      else{
+
+      tr[i].style.display="none";
+
+      }
+
+      }
+
+      }
+
       }
     </script>
   </body>

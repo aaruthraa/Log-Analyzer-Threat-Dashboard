@@ -6,6 +6,8 @@ from parser import LogParser
 from detector import ThreatDetector
 
 app = Flask(__name__)
+print("App root:", app.root_path)
+print("Template folder:", app.template_folder)
 
 UPLOAD_FOLDER = "logs"
 app.config["UPLOAD_FOLDER"] = UPLOAD_FOLDER
