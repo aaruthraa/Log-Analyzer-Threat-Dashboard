@@ -6,17 +6,17 @@ from parser import LogParser
 from detector import ThreatDetector
 
 app = Flask(__name__)
-print("App root:", app.root_path)
-print("Template folder:", app.template_folder)
 
 UPLOAD_FOLDER = "logs"
 app.config["UPLOAD_FOLDER"] = UPLOAD_FOLDER
 
+# Stores the last uploaded file
+current_file = "servers.log"
+
 
 @app.route("/", methods=["GET", "POST"])
 def home():
-
-    filename = "servers.log"
+    global current_file
 
     if request.method == "POST":
 
@@ -24,13 +24,13 @@ def home():
 
         if uploaded_file and uploaded_file.filename != "":
 
-            filename = uploaded_file.filename
+            current_file = uploaded_file.filename
 
-            save_path = os.path.join(app.config["UPLOAD_FOLDER"], filename)
+            save_path = os.path.join(app.config["UPLOAD_FOLDER"], current_file)
 
             uploaded_file.save(save_path)
 
-    parser = LogParser(os.path.join("logs", filename))
+    parser = LogParser(os.path.join("logs", current_file))
     logs = parser.parse()
 
     detector = ThreatDetector(logs)
@@ -54,10 +54,12 @@ def home():
         success=success,
         failed_count=failed_count
     )
+
+
 @app.route("/download_csv")
 def download_csv():
 
-    parser = LogParser("logs/servers.log")
+    parser = LogParser(os.path.join("logs", current_file))
     logs = parser.parse()
 
     detector = ThreatDetector(logs)
@@ -70,6 +72,7 @@ def download_csv():
     df.to_csv(filename, index=False)
 
     return send_file(filename, as_attachment=True)
+
 
 if __name__ == "__main__":
     app.run(debug=True)
